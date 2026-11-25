@@ -24,13 +24,14 @@ const GRUSS = "Ein bisschen Abendsonne, wann immer du magst.";
     s60:     ["button", "Schlaf60"],
     stopp:   ["button", "Schlafstopp"],
     gruss:   ["button", "Gruss"],
+    letzterGruss: ["text_sensor", "Letzter Gruss"],
   };
 
   const MQTT = window.SONNENLICHT_MQTT || null;   // gesetzt = Fernsteuerung über das Internet
   const PW_KEY = "sonnenlicht-passwort";
   let client = null;
 
-  const st = { an: false, hell: 0, effekt: "None", wecker: false, stunde: 7, minute: 0, dauer: 20, rest: 0, online: false, lampeOnline: !MQTT };
+  const st = { an: false, hell: 0, effekt: "None", wecker: false, stunde: 7, minute: 0, dauer: 20, rest: 0, letzterGruss: null, online: false, lampeOnline: !MQTT };
   let letzteEingabe = 0;
 
   /* ---------- Aussehen ---------- */
@@ -124,7 +125,13 @@ const GRUSS = "Ein bisschen Abendsonne, wann immer du magst.";
     transition:opacity .3s,transform .3s;max-width:85vw;text-align:center}
   .toast.zeigen{opacity:1;transform:translate(-50%,0)}
   .gruppe[hidden],.fuss button[hidden]{display:none}
-  .gruss-knopf{width:100%;padding:13px 15px;font-weight:600}
+  .gruss-knopf{width:100%;padding:14px 15px;font-weight:600;font-size:1.05rem;border:0;color:#3b1f45;
+    background:linear-gradient(90deg,#ffd1dc,var(--koralle))}
+  .gruss-knopf:disabled{opacity:.6}
+  .gruss-info{margin:10px 0 0;font-size:.9rem;color:var(--text);opacity:.9}
+  .gruss-info[hidden]{display:none}
+  @keyframes herzschlag{0%,100%{transform:scale(1)}12%{transform:scale(1.14)}24%{transform:scale(1)}36%{transform:scale(1.14)}50%{transform:scale(1)}}
+  .himmel.gruss-da .sonne,.himmel.gruss-da .schein{animation:herzschlag 1.4s ease-in-out 3}
   .fuss button{background:none;border:0;color:var(--leise);font:inherit;text-decoration:underline;cursor:pointer;margin-left:10px;padding:4px}
   .anmeldung{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding:24px;
     background:linear-gradient(180deg,#120f2a 0%,var(--nacht) 55%,var(--erde) 100%)}
@@ -146,7 +153,7 @@ const GRUSS = "Ein bisschen Abendsonne, wann immer du magst.";
       <path d="M0 52 C 90 22, 170 30, 250 50 S 400 72, 480 40 L480 90 L0 90 Z" fill="#3b1f45"/>
       <path d="M0 70 C 110 48, 200 58, 300 70 S 430 82, 480 66 L480 90 L0 90 Z" fill="#2a1733"/>
     </svg>
-    <div class="gruss"><h1 class="titel" id="hallo"></h1><p id="gruss"></p></div>
+    <div class="gruss"><h1 class="titel" id="hallo"></h1><p id="gruss"></p><p class="gruss-info" id="gruss-info" hidden></p></div>
     <div class="zustand" id="zustand">Verbinde mit der Lampe …</div>
   </div>
 
@@ -157,7 +164,7 @@ const GRUSS = "Ein bisschen Abendsonne, wann immer du magst.";
 
     <section class="gruppe" id="gruss-gruppe" hidden>
       <button class="wahl gruss-knopf" id="gruss-knopf">♥ Gruß schicken</button>
-      <p class="hinweis">Die Lampe leuchtet dreimal sanft auf und kehrt dann zu ihrem vorherigen Zustand zurück.</p>
+      <p class="hinweis" id="gruss-hinweis">Die Lampe schlägt dreimal wie ein Herz und macht danach genau dort weiter, wo sie war, auch mit laufendem Timer.</p>
     </section>
 
     <section class="gruppe">
@@ -336,6 +343,11 @@ const GRUSS = "Ein bisschen Abendsonne, wann immer du magst.";
     else if (k === "minute" && !isNaN(zahl)) st.minute = zahl;
     else if (k === "dauer" && !isNaN(zahl)) st.dauer = zahl;
     else if (k === "rest" && !isNaN(zahl)) st.rest = zahl;
+    else if (k === "letzterGruss") {
+      const wert = String(d.value ?? d.state ?? "");
+      if (st.letzterGruss !== null && wert && wert !== st.letzterGruss) grussAngekommen();
+      st.letzterGruss = wert;
+    }
     zeichne();
   }
 
@@ -399,10 +411,28 @@ const GRUSS = "Ein bisschen Abendsonne, wann immer du magst.";
       : "Aus. Schalte es ein, dann weckt dich morgens ein langsamer Sonnenaufgang.";
 
     const verbunden = st.online && st.lampeOnline;
+    const info = $("#gruss-info");
+    info.hidden = !st.letzterGruss;
+    info.textContent = st.letzterGruss ? `♥ Letzter Gruß: ${st.letzterGruss}` : "";
+
     $("#punkt").classList.toggle("ok", verbunden);
     $("#verbindung").textContent = verbunden
       ? (MQTT ? "Über das Internet verbunden" : "Mit der Lampe verbunden")
       : (st.online ? "Lampe nicht erreichbar" : "Verbinde …");
+  }
+
+  let grussTimer;
+  function grussAngekommen() {
+    const himmel = $("#himmel");
+    himmel.classList.remove("gruss-da");
+    void himmel.offsetWidth;            // Animation neu starten
+    himmel.classList.add("gruss-da");
+    clearTimeout(grussTimer);
+    grussTimer = setTimeout(() => himmel.classList.remove("gruss-da"), 4500);
+    toast(MQTT ? "♥ Dein Gruß ist angekommen" : "♥ Ein Gruß ist angekommen");
+    const knopf = $("#gruss-knopf");
+    knopf.disabled = false;
+    knopf.textContent = "♥ Gruß schicken";
   }
 
   let toastTimer;
@@ -483,7 +513,14 @@ const GRUSS = "Ein bisschen Abendsonne, wann immer du magst.";
     }));
 
     $("#gruss-knopf").addEventListener("click", async () => {
-      if (await befehl("gruss", "press")) toast("Gruß ist unterwegs ♥");
+      const knopf = $("#gruss-knopf");
+      if (!(await befehl("gruss", "press"))) return;
+      knopf.disabled = true;
+      knopf.textContent = "♥ Gruß ist unterwegs …";
+      // Falls keine Bestätigung kommt, Knopf nach 10 s wieder freigeben
+      setTimeout(() => {
+        if (knopf.disabled) { knopf.disabled = false; knopf.textContent = "♥ Gruß schicken"; toast("Keine Bestätigung von der Lampe erhalten."); }
+      }, 10000);
     });
     $("#anmelde-form").addEventListener("submit", e => {
       e.preventDefault();
