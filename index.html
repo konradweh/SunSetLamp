@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sonnenlicht</title>
+  <script>
+    // ── Hier deine EMQX-Daten eintragen ───────────────────────
+    // url:      Adresse deines Deployments, mit wss://, Port 8084 und /mqtt am Ende
+    // benutzer: der Benutzername für die Webseite (NICHT der der Lampe)
+    // Das Passwort steht hier bewusst nicht, es wird beim ersten Öffnen abgefragt.
+    window.SONNENLICHT_MQTT = {
+      url: "wss://s2551b75.ala.eu-central-1.emqxsl.com:8084/mqtt",
+      benutzer: "webseite",
+      praefix: "sunset-lampe"
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mqtt@5.15.2/dist/mqtt.min.js"></script>
+  <script src="lampe-ui.js"></script>
+</head>
+<body></body>
+</html>
