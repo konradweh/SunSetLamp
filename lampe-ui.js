@@ -260,7 +260,11 @@ const GRUSS = "Ein bisschen Abendsonne, wann immer du magst.";
       nachricht = JSON.stringify(p);
     } else if (dom === "switch") nachricht = aktion === "turn_on" ? "ON" : "OFF";
     else if (dom === "number") nachricht = String(params.value);
-    else nachricht = "PRESS";
+    else {
+      // Knöpfe laufen über ein gemeinsames Topic (EMQX Serverless erlaubt nur 10 Abos pro Client)
+      client.publish(`${MQTT.praefix}/aktion`, slug(ENT[key][1]), { qos: 1 });
+      return true;
+    }
     client.publish(topicBasis(key) + "/command", nachricht, { qos: 1 });
     return true;
   }
