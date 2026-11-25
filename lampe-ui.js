@@ -210,7 +210,7 @@ const GRUSS = "Ein bisschen Abendsonne, wann immer du magst.";
     <form id="anmelde-form">
       <h1 class="titel">Sonnenlicht</h1>
       <p class="hinweis" id="anmelde-hinweis">Gib das Passwort ein, um die Lampe von unterwegs zu steuern.</p>
-      <input type="password" id="pw" autocomplete="current-password" placeholder="Passwort" aria-label="Passwort">
+      <input type="password" id="pw" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Passwort" aria-label="Passwort">
       <button class="knopf-gross" type="submit">Verbinden</button>
     </form>
   </div>`;
@@ -287,6 +287,7 @@ const GRUSS = "Ein bisschen Abendsonne, wann immer du magst.";
   function mqttVerbinden(passwort) {
     if (client) client.end(true);
     let angemeldet = false;
+    console.info("Verbinde mit", MQTT.url || MQTT.host, "als", MQTT.benutzer, "– Passwortlänge:", passwort.length);
     client = mqtt.connect(MQTT.url || `wss://${MQTT.host}:8884/mqtt`, {
       username: MQTT.benutzer, password: passwort,
       clientId: "sonnenlicht-" + Math.random().toString(16).slice(2, 10),
@@ -301,11 +302,13 @@ const GRUSS = "Ein bisschen Abendsonne, wann immer du magst.";
     });
     client.on("close", () => { st.online = false; zeichne(); });
     client.on("error", fehler => {
+      console.error("MQTT-Fehler:", fehler && fehler.code, fehler && fehler.message, fehler);
+      const details = fehler ? ` (${fehler.code !== undefined ? "Code " + fehler.code + ": " : ""}${fehler.message || fehler})` : "";
       const falschesPw = fehler && (fehler.code === 4 || fehler.code === 5 || /authori|password|credential/i.test(fehler.message || ""));
       if (falschesPw || !angemeldet && !speicher("lesen")) {
         client.end(true);
         speicher("loeschen");
-        anmeldungZeigen(true, falschesPw ? "Das Passwort stimmt nicht." : "Verbindung fehlgeschlagen. Ist das Internet an?");
+        anmeldungZeigen(true, (falschesPw ? "Anmeldung abgelehnt" : "Verbindung fehlgeschlagen") + details);
       }
     });
     client.on("message", (topic, inhalt) => mqttNachricht(topic, inhalt.toString()));
@@ -484,7 +487,7 @@ const GRUSS = "Ein bisschen Abendsonne, wann immer du magst.";
     });
     $("#anmelde-form").addEventListener("submit", e => {
       e.preventDefault();
-      const pw = $("#pw").value;
+      const pw = $("#pw").value.trim();
       if (pw) mqttVerbinden(pw);
     });
     $("#abmelden").addEventListener("click", () => {
