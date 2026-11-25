@@ -243,7 +243,9 @@ const GRUSS = "Ein bisschen Abendsonne, wann immer du magst.";
 
   /* ---------- Fernsteuerung über MQTT ---------- */
   // ESPHome-Topics: <praefix>/<domain>/<object_id>/state bzw. /command
-  const topicBasis = key => { const [dom, name] = ENT[key]; return `${MQTT.praefix}/${dom}/${slug(name)}`; };
+  // Achtung: ESPHome schickt Textsensoren über MQTT unter "sensor/…", nicht "text_sensor/…"
+  const mqttDomain = dom => (dom === "text_sensor" ? "sensor" : dom);
+  const topicBasis = key => { const [dom, name] = ENT[key]; return `${MQTT.praefix}/${mqttDomain(dom)}/${slug(name)}`; };
 
   function mqttBefehl(key, aktion, params) {
     if (!client || !client.connected) { toast("Keine Verbindung. Ist das Internet an?"); return false; }
